@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The security checklist for apps built with Bolt.new</title>
+<meta name="description" content="Five checks for Bolt.new apps: Supabase Row Level Security, secrets behind VITE_, Edge Functions for API keys, storage buckets, and how to prove it from the outside.">
+<link rel="canonical" href="https://beingrealfrank.github.io/leakproof/bolt-security-checklist.html">
+<style>
+  body { margin:0; font: 17px/1.65 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif; background:#fff; color:#1f2328; }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 30px 22px 70px; }
+  a { color:#1a7f37; } code, pre { font-family: ui-monospace, Menlo, monospace; font-size: 14.5px; }
+  pre { background:#f6f8fa; border:1px solid #d0d7de; border-radius:8px; padding:12px 14px; overflow-x:auto; }
+  h1 { line-height:1.2; } h2 { margin-top: 42px; }
+  .cta { background:#f0fdf4; border:1px solid #1a7f3755; border-radius:10px; padding:16px 18px; margin: 36px 0; }
+</style>
+</head>
+<body><div class="wrap">
+<p><a href="./">← Leakproof</a></p>
+<h1>The security checklist for apps built with Bolt.new</h1>
+<p>Bolt.new projects are Vite apps that usually talk straight to Supabase from the browser. That means the anon key is public by design and a few settings decide whether your data is safe. Here are five checks, about ten minutes.</p>
+
+<h2>1. Row Level Security</h2>
+<p>Run this in the Supabase SQL editor. Every row returned is a table that the anon key can read and write through the REST API, whatever your UI shows:</p>
+<pre>select schemaname, tablename
+from pg_tables
+where schemaname = 'public' and rowsecurity = false;</pre>
+<p>Fix each one, then add only the access you need:</p>
+<pre>alter table public.&lt;table&gt; enable row level security;</pre>
+<p>Also look for policies that let everyone in; <code>using (true)</code> on anything per-user is a leak:</p>
+<pre>select tablename, policyname, cmd, roles, qual, with_check
+from pg_policies
+where schemaname = 'public'
+  and (qual = 'true' or with_check = 'true');</pre>
+
+<h2>2. Secrets behind VITE_</h2>
+<p>Anything starting with <code>VITE_</code> is copied into the browser bundle at build time. Fine to be public: the Supabase URL and anon key, Stripe publishable keys (<code>pk_…</code>). Never public: OpenAI, Anthropic or other AI keys, Stripe secret keys (<code>sk_…</code>), the Supabase <code>service_role</code> key, database URLs. Find them in your code:</p>
+<pre>grep -rnE "(NEXT_PUBLIC|VITE|EXPO_PUBLIC|REACT_APP)_[A-Z0-9_]*(SECRET|SERVICE_ROLE|PRIVATE|OPENAI|ANTHROPIC|DATABASE_URL|WEBHOOK)" \
+  --exclude-dir=node_modules --exclude-dir=.git .</pre>
+
+<h2>3. Edge Functions for API keys</h2>
+<p>Vite apps have no server of their own: put the call in a Supabase Edge Function, read the key there with <code>Deno.env.get('OPENAI_API_KEY')</code>, and set it with <code>supabase secrets set OPENAI_API_KEY=…</code>. Check the user is signed in and rate-limit them in the function, before spending money. If a key was ever public, create a new one in the provider's dashboard, deploy with it, then delete the old one.</p>
+
+<h2>4. Storage buckets</h2>
+<pre>select id, public from storage.buckets;</pre>
+<p>A public bucket serves any file to anyone with its URL, with no policy check. Fine for avatars; not for invoices, uploads or exports. Make those private and use <code>createSignedUrl()</code>.</p>
+
+<h2>5. Prove it from the outside</h2>
+<p>Policies are easy to misread. Test with the same key an attacker has (your anon key, from your site's JS):</p>
+<pre>curl "https://&lt;project&gt;.supabase.co/rest/v1/&lt;table&gt;?select=*&amp;limit=5" \
+  -H "apikey: &lt;anon key&gt;"</pre>
+<p>Signed-out, this should return <code>[]</code> or an error for any private table. Then sign in as test user A and confirm you can't see user B's rows.</p>
+
+<div class="cta">
+<b>Check your repo automatically.</b> Leakproof's free scanner flags tables without RLS, allow-all policies, secrets behind public prefixes, committed .env files and more. It runs locally:
+<pre style="margin:10px 0 6px">npx github:beingRealFrank/leakproof</pre>
+Want someone to go through all of this, plus your live project, and send fix PRs? <a href="./#pricing">See the fixed-price audits</a>.
+</div>
+<p>More checklists: <a href="supabase-rls-checklist.html">Supabase RLS</a> · <a href="firebase-rules-checklist.html">Firebase rules</a> · <a href="public-env-secrets-checklist.html">Secret keys in your frontend</a> · <a href="lovable-security-checklist.html">Lovable</a></p>
+</div></body></html>
