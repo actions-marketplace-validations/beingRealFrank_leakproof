@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Is the Supabase anon key safe to expose in my frontend?</title>
+<meta name="description" content="Yes, the Supabase anon key is meant to be public, but only Row Level Security keeps your data safe. How to check that, with the SQL and a curl test.">
+<link rel="canonical" href="https://beingrealfrank.github.io/leakproof/is-supabase-anon-key-safe.html">
+<style>
+  body { margin:0; font: 17px/1.65 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif; background:#fff; color:#1f2328; }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 30px 22px 70px; }
+  a { color:#1a7f37; } code, pre { font-family: ui-monospace, Menlo, monospace; font-size: 14.5px; }
+  pre { background:#f6f8fa; border:1px solid #d0d7de; border-radius:8px; padding:12px 14px; overflow-x:auto; }
+  h1 { line-height:1.2; } h2 { margin-top: 42px; }
+  .cta { background:#f0fdf4; border:1px solid #1a7f3755; border-radius:10px; padding:16px 18px; margin: 36px 0; }
+</style>
+</head>
+<body><div class="wrap">
+<p><a href="./">← Leakproof</a></p>
+<h1>Is the Supabase anon key safe to expose in my frontend?</h1>
+<p><b>Short answer: yes, the anon key is public by design, and it is only safe if Row Level Security is on for every table.</b> Anyone can read the key from your site's JavaScript. What it can do is decided by your RLS policies, not by keeping the key secret. The service_role key is different: it ignores RLS and must never reach the browser.</p>
+<h2>Check 1: tables with RLS off</h2>
+<pre>select schemaname, tablename
+from pg_tables
+where schemaname = 'public' and rowsecurity = false;</pre>
+<p>Every row returned is a table that the anon key can read and write through the REST API, whatever your UI shows. Fix:</p>
+<pre>alter table public.&lt;table&gt; enable row level security;</pre>
+<h2>Check 2: policies that let everyone in</h2>
+<pre>select tablename, policyname, cmd, roles, qual, with_check
+from pg_policies
+where schemaname = 'public'
+  and (qual = 'true' or with_check = 'true');</pre>
+<p><code>using (true)</code> on a <b>select</b> policy means "anyone can read every row", which is fine for a product catalog and a leak for anything per-user.</p>
+<h2>Check 3: prove it from the outside</h2>
+<pre>curl "https://&lt;project&gt;.supabase.co/rest/v1/&lt;table&gt;?select=*&amp;limit=5" \
+  -H "apikey: &lt;anon key&gt;"</pre>
+<p>Signed-out, this should return <code>[]</code> or an error for any private table.</p>
+<h2>Check 4: the service_role key</h2>
+<p>Search your code for <code>SERVICE_ROLE</code> and check none of it is in a <code>'use client'</code> file, a <code>NEXT_PUBLIC_</code> / <code>VITE_</code> variable, or committed to git. If it ever was, rotate it.</p>
+<p>Full walkthrough: <a href="supabase-rls-checklist.html">the Supabase RLS checklist</a>. Or paste your migration into the <a href="supabase-rls-policy-checker.html">RLS policy checker</a> (runs in your browser).</p>
+<div class="cta">
+<b>Check your repo automatically.</b> Leakproof's free scanner flags tables without RLS, allow-all policies, service_role keys in client code and more. It runs locally:
+<pre style="margin:10px 0 6px">npx github:beingRealFrank/leakproof</pre>
+Want someone to go through all of this, plus your live project, and send fix PRs? <a href="./#pricing">See the fixed-price audits</a>.
+</div>
+<p>More checklists: <a href="supabase-rls-checklist.html">Supabase RLS</a> · <a href="firebase-rules-checklist.html">Firebase rules</a> · <a href="public-env-secrets-checklist.html">Secret keys in your frontend</a> · <a href="supabase-rls-policy-checker.html">RLS policy checker</a></p>
+</div></body></html>

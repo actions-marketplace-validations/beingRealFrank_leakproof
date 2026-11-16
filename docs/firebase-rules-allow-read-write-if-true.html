@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Firebase rules "allow read, write: if true": how to fix them</title>
+<meta name="description" content="Firebase rules left in test mode or set to if true? How to find open rules in Firestore, Realtime Database and Storage and replace them with per-user rules.">
+<link rel="canonical" href="https://beingrealfrank.github.io/leakproof/firebase-rules-allow-read-write-if-true.html">
+<style>
+  body { margin:0; font: 17px/1.65 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif; background:#fff; color:#1f2328; }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 30px 22px 70px; }
+  a { color:#1a7f37; } code, pre { font-family: ui-monospace, Menlo, monospace; font-size: 14.5px; }
+  pre { background:#f6f8fa; border:1px solid #d0d7de; border-radius:8px; padding:12px 14px; overflow-x:auto; }
+  h1 { line-height:1.2; } h2 { margin-top: 42px; }
+  .cta { background:#f0fdf4; border:1px solid #1a7f3755; border-radius:10px; padding:16px 18px; margin: 36px 0; }
+</style>
+</head>
+<body><div class="wrap">
+<p><a href="./">← Leakproof</a></p>
+<h1>Firebase rules "allow read, write: if true": how to fix them</h1>
+<p>Your Firebase web config is public by design. The only thing between it and your users' data is your security rules, and AI tools often leave them in test mode or loosen them until the app "works". Here is how to find and fix open rules.</p>
+<h2>1. Find test-mode and allow-all rules</h2>
+<pre>grep -nE "if true|request.time &lt;|\"\.(read|write)\": *true" firestore.rules storage.rules database.rules.json</pre>
+<p>Any hit is an open door. <code>allow read, write: if request.time &lt; timestamp.date(...)</code> is the default test-mode rule: everything is public until that date, and when it passes the app breaks and someone "fixes" it with <code>if true</code>.</p>
+<h2>2. "Signed in" is not "allowed"</h2>
+<p><code>allow read, write: if request.auth != null;</code> lets every user who signs up read and change every other user's documents. Tie each document to its owner:</p>
+<pre>match /users/{userId}/{document=**} {
+  allow read, write: if request.auth != null &amp;&amp; request.auth.uid == userId;
+}</pre>
+<h2>3. Realtime Database and Storage</h2>
+<p><code>".read": true</code> or <code>".write": true</code> at the root of <code>database.rules.json</code> opens the whole database. Scope it per user:</p>
+<pre>{
+  "rules": {
+    "users": {
+      "$uid": { ".read": "$uid === auth.uid", ".write": "$uid === auth.uid" }
+    }
+  }
+}</pre>
+<h2>4. Prove it from the outside</h2>
+<p>Signed out, a private collection must refuse to list:</p>
+<pre>curl "https://firestore.googleapis.com/v1/projects/&lt;project-id&gt;/databases/(default)/documents/&lt;collection&gt;?pageSize=5"</pre>
+<p>You want <code>403 PERMISSION_DENIED</code>. If you get documents back, anyone on the internet can too.</p>
+<p>Full walkthrough: <a href="firebase-rules-checklist.html">the Firebase rules checklist</a>.</p>
+<div class="cta">
+<b>Check your repo automatically.</b> Leakproof's free scanner flags open Firebase rules, admin keys in client code, committed .env files and more. It runs locally:
+<pre style="margin:10px 0 6px">npx github:beingRealFrank/leakproof</pre>
+Want someone to go through all of this, plus your live project, and send fix PRs? <a href="./#pricing">See the fixed-price audits</a>.
+</div>
+<p>More checklists: <a href="supabase-rls-checklist.html">Supabase RLS</a> · <a href="firebase-rules-checklist.html">Firebase rules</a> · <a href="public-env-secrets-checklist.html">Secret keys in your frontend</a> · <a href="supabase-rls-policy-checker.html">RLS policy checker</a></p>
+</div></body></html>
