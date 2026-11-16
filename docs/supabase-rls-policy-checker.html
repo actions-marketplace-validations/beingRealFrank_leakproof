@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Supabase RLS policy checker: paste your SQL, find tables without RLS</title>
+<meta name="description" content="Free, browser-only Supabase RLS checker. Paste your SQL migration to find tables without Row Level Security and policies that allow everyone. Nothing is uploaded.">
+<link rel="canonical" href="https://beingrealfrank.github.io/leakproof/supabase-rls-policy-checker.html">
+<style>
+  body { margin:0; font: 17px/1.65 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif; background:#fff; color:#1f2328; }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 30px 22px 70px; }
+  a { color:#1a7f37; } code, pre { font-family: ui-monospace, Menlo, monospace; font-size: 14.5px; }
+  pre { background:#f6f8fa; border:1px solid #d0d7de; border-radius:8px; padding:12px 14px; overflow-x:auto; }
+  h1 { line-height:1.2; } h2 { margin-top: 42px; }
+  .cta { background:#f0fdf4; border:1px solid #1a7f3755; border-radius:10px; padding:16px 18px; margin: 36px 0; }
+</style>
+</head>
+<body><div class="wrap">
+<p><a href="./">← Leakproof</a></p>
+<h1>Supabase RLS policy checker</h1>
+<p>Paste your Supabase SQL migration. The checker flags tables that never get <code>enable row level security</code> and policies that use <code>using (true)</code>. It checks only what is in the SQL you paste, so it can't see your live database; the <a href="supabase-rls-checklist.html">RLS checklist</a> shows how to check that part.</p>
+<p><b>Runs entirely in your browser. Nothing you paste is uploaded.</b></p>
+<textarea id="sql" rows="14" style="width:100%;box-sizing:border-box;font-family:ui-monospace,Menlo,monospace;font-size:14px;border:1px solid #d0d7de;border-radius:8px;padding:10px" placeholder="create table public.todos (...);&#10;create policy ... on public.todos for all using (true);"></textarea>
+<p><button id="go" style="font-size:16px;padding:8px 18px;border-radius:8px;border:0;background:#1a7f37;color:#fff;cursor:pointer">Check</button></p>
+<div id="out"></div>
+<script>
+function lineOf(t, i) { return t.slice(0, i).split('\n').length; }
+function checkSQL(sql) {
+  const clean = sql.replace(/--[^\n]*/g, '');
+  const norm = (n) => n.replace(/"/g, '').toLowerCase().replace(/^public\./, '');
+  const created = new Map(), enabled = new Set(), out = [];
+  for (const m of clean.matchAll(/create\s+table\s+(?:if\s+not\s+exists\s+)?((?:"?[\w]+"?\.)?"?[\w]+"?)/gi)) {
+    const name = norm(m[1]);
+    if (name.includes('.')) continue;
+    if (!created.has(name)) created.set(name, lineOf(clean, m.index));
+  }
+  for (const m of clean.matchAll(/alter\s+table\s+(?:only\s+)?(?:if\s+exists\s+)?((?:"?[\w]+"?\.)?"?[\w]+"?)\s+enable\s+row\s+level\s+security/gi)) enabled.add(norm(m[1]));
+  for (const [name, line] of created) {
+    if (enabled.has(name)) continue;
+    out.push({ severity: 'critical', line, title: 'Table without Row Level Security: ' + name,
+      detail: 'Table "' + name + '" never gets "enable row level security". With Supabase, the anon key in your frontend can then read and write every row of it through the REST API.',
+      fix: 'alter table public.' + name + ' enable row level security;  then add policies, e.g. create policy "own rows" on public.' + name + ' for all using (auth.uid() = user_id) with check (auth.uid() = user_id);' });
+  }
+  for (const m of clean.matchAll(/create\s+policy\s+("[^"]+"|\w+)\s+on\s+([\w."]+)([\s\S]*?);/gi)) {
+    const body = m[3];
+    const forWhat = (/\bfor\s+(all|select|insert|update|delete)\b/i.exec(body)?.[1] || 'all').toLowerCase();
+    if (!/\b(using|with\s+check)\s*\(\s*true\s*\)/i.test(body)) continue;
+    const toAnon = !/\bto\s+(authenticated|service_role)\b/i.test(body);
+    if (forWhat === 'select' && toAnon) {
+      out.push({ severity: 'low', line: lineOf(clean, m.index), title: 'Policy that allows everyone: ' + m[1],
+        detail: 'Policy ' + m[1] + ' lets anyone, signed in or not, read every row of ' + m[2] + '. Fine for truly public data, a leak for anything per-user.',
+        fix: 'If rows belong to users, use using (auth.uid() = user_id). If the table is public by design, ignore this.' });
+    } else if (forWhat !== 'select') {
+      out.push({ severity: toAnon ? 'critical' : 'high', line: lineOf(clean, m.index), title: 'Policy that allows everyone: ' + m[1],
+        detail: 'Policy ' + m[1] + ' lets ' + (toAnon ? 'anyone, even signed-out visitors,' : 'any signed-in user') + ' ' + (forWhat === 'all' ? 'read, insert, change and delete' : forWhat) + ' rows of ' + m[2] + ", including other users' rows.",
+        fix: 'Replace true with an ownership check, e.g. using (auth.uid() = user_id) with check (auth.uid() = user_id).' });
+    }
+  }
+  return out;
+}
+
+document.getElementById('go').addEventListener('click', function () {
+  var out = document.getElementById('out'); out.textContent = '';
+  var res = checkSQL(document.getElementById('sql').value);
+  if (!res.length) { var p = document.createElement('p'); p.textContent = 'No findings in the pasted SQL. That does not mean the database is secure: it only covers table RLS and allow-all policies.'; out.appendChild(p); return; }
+  res.forEach(function (f) {
+    var d = document.createElement('div'); d.style.cssText = 'border:1px solid #d0d7de;border-radius:8px;padding:10px 14px;margin:10px 0';
+    var h = document.createElement('b'); h.textContent = f.severity.toUpperCase() + ': ' + f.title + ' (line ' + f.line + ')';
+    var a = document.createElement('p'); a.textContent = f.detail;
+    var c = document.createElement('pre'); c.textContent = 'Fix: ' + f.fix;
+    d.appendChild(h); d.appendChild(a); d.appendChild(c); out.appendChild(d);
+  });
+});
+</script>
+<div class="cta">
+<b>Check your whole repo automatically.</b> Leakproof's free scanner reads your migrations and code and flags tables without RLS, allow-all policies, service_role keys in client code, public buckets and more. It runs locally:
+<pre style="margin:10px 0 6px">npx github:beingRealFrank/leakproof</pre>
+Want someone to go through all of this, plus your live project, and send fix PRs? <a href="./#pricing">See the fixed-price audits</a>.
+</div>
+<p>More checklists: <a href="supabase-rls-checklist.html">Supabase RLS</a> · <a href="firebase-rules-checklist.html">Firebase rules</a> · <a href="public-env-secrets-checklist.html">Secret keys in your frontend</a></p>
+</div></body></html>
