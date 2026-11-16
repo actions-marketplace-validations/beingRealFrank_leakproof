@@ -51,7 +51,7 @@
 <header><b>🛡️ Leakproof</b><nav><a href="#scanner">Free scanner</a><a href="#pricing">Audits</a><a href="sample-report.html">Sample report</a><a href="supabase-rls-checklist.html">RLS checklist</a><a href="#faq">FAQ</a></nav></header>
 
 <section class="hero">
-  <h1>Your AI built the app.<br>Who checked the locks?</h1>
+  <h1>Launching an app you built with Lovable, Bolt or Cursor?<br>Get it security-checked first.</h1>
   <p class="lead">Apps built with Lovable, Bolt, Cursor, v0 and Replit ship fast, and they ship the same security holes: keys in the browser, Supabase tables anyone can read, server actions anyone can call. Leakproof finds them and sends you the pull requests that fix them, for a fixed price.</p>
   <div class="row"><a class="btn" href="#pricing">Get an audit</a><a class="btn ghost" href="#scanner">Run the free scanner</a></div>
 </section>
@@ -71,6 +71,11 @@
 <div class="cmd"><code id="c">npx github:beingRealFrank/leakproof</code><button onclick="navigator.clipboard.writeText(document.getElementById('c').textContent);this.textContent='Copied'">Copy</button></div>
 <p style="color:var(--muted);font-size:15px">Also as a GitHub Action that runs on every pull request. <a href="https://github.com/beingRealFrank/leakproof">Source and docs on GitHub</a>.</p>
 <p class="note">A scanner can't see your live database settings, your business logic, or whether user A can read user B's records. That's what the audit is for.</p>
+
+<h2>Why pay when free scanners exist?</h2>
+<details><summary>I already ran a free scanner. Why pay?</summary><p>Scanners match patterns. The audit also reviews your live Supabase / Firebase configuration read-only, tests access control against a staging deployment, and with Audit + Fix PRs ships pull requests that pass your CI. Every finding is reproduced and checked by a human before you see it.</p></details>
+<details><summary>Do you need my production credentials?</summary><p>No. Access is read-only: a GitHub collaborator invite with read access (or a zip), and optionally a staging URL and test accounts. We only test against staging or read-only and never modify or delete your data.</p></details>
+<details><summary>What do I get?</summary><p>A written report in priority order, what's wrong, how bad, how to fix it. See the <a href="sample-report.html">sample report</a>.</p></details>
 
 <h2 id="pricing">Fixed-price audits</h2>
 <div class="grid">
