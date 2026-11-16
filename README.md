@@ -66,6 +66,8 @@ Pattern checks can't see your deployed configuration (Supabase dashboard setting
 - [The Supabase RLS checklist for AI-built apps](https://beingrealfrank.github.io/leakproof/supabase-rls-checklist.html)
 - [The Firebase security rules checklist for AI-built apps](https://beingrealfrank.github.io/leakproof/firebase-rules-checklist.html)
 - [Secret keys in your frontend: the NEXT_PUBLIC_ and VITE_ checklist](https://beingrealfrank.github.io/leakproof/public-env-secrets-checklist.html)
+- [The security checklist for apps built with Lovable](https://beingrealfrank.github.io/leakproof/lovable-security-checklist.html)
+- [The security checklist for apps built with Bolt.new](https://beingrealfrank.github.io/leakproof/bolt-security-checklist.html)
 
 ## Want a full audit?
 
