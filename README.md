@@ -68,6 +68,7 @@ Pattern checks can't see your deployed configuration (Supabase dashboard setting
 - [Secret keys in your frontend: the NEXT_PUBLIC_ and VITE_ checklist](https://beingrealfrank.github.io/leakproof/public-env-secrets-checklist.html)
 - [The security checklist for apps built with Lovable](https://beingrealfrank.github.io/leakproof/lovable-security-checklist.html)
 - [The security checklist for apps built with Bolt.new](https://beingrealfrank.github.io/leakproof/bolt-security-checklist.html)
+- [Supabase RLS policy checker](https://beingrealfrank.github.io/leakproof/supabase-rls-policy-checker.html): paste your SQL, runs in your browser
 
 ## Want a full audit?
 
