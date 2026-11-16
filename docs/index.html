@@ -72,7 +72,7 @@
 <p style="color:var(--muted);font-size:15px">Also as a GitHub Action that runs on every pull request. <a href="https://github.com/beingRealFrank/leakproof">Source and docs on GitHub</a>.</p>
 <p class="note">A scanner can't see your live database settings, your business logic, or whether user A can read user B's records. That's what the audit is for.</p>
 
-<h2>Why pay when free scanners exist?</h2>
+<h2>Free scanner or audit?</h2>
 <details><summary>I already ran a free scanner. Why pay?</summary><p>Scanners match patterns. The audit also reviews your live Supabase / Firebase configuration read-only, tests access control against a staging deployment, and with Audit + Fix PRs ships pull requests that pass your CI. Every finding is reproduced and checked by a human before you see it.</p></details>
 <details><summary>Do you need my production credentials?</summary><p>No. Access is read-only: a GitHub collaborator invite with read access (or a zip), and optionally a staging URL and test accounts. We only test against staging or read-only and never modify or delete your data.</p></details>
 <details><summary>What do I get?</summary><p>A written report in priority order, what's wrong, how bad, how to fix it. See the <a href="sample-report.html">sample report</a>.</p></details>
