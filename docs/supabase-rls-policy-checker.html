@@ -62,6 +62,7 @@ function checkSQL(sql) {
 document.getElementById('go').addEventListener('click', function () {
   var out = document.getElementById('out'); out.textContent = '';
   var res = checkSQL(document.getElementById('sql').value);
+  try { if (window.goatcounter && window.goatcounter.count) window.goatcounter.count({path: 'tool-run/rls-policy-checker', title: 'RLS checker run', event: true}); } catch (e) {}
   if (!res.length) { var p = document.createElement('p'); p.textContent = 'No findings in the pasted SQL. That does not mean the database is secure: it only covers table RLS and allow-all policies.'; out.appendChild(p); return; }
   res.forEach(function (f) {
     var d = document.createElement('div'); d.style.cssText = 'border:1px solid #d0d7de;border-radius:8px;padding:10px 14px;margin:10px 0';
@@ -78,4 +79,5 @@ document.getElementById('go').addEventListener('click', function () {
 Want someone to go through all of this, plus your live project, and send fix PRs? <a href="./#pricing">See the fixed-price audits</a>.
 </div>
 <p>More checklists: <a href="supabase-rls-checklist.html">Supabase RLS</a> · <a href="firebase-rules-checklist.html">Firebase rules</a> · <a href="public-env-secrets-checklist.html">Secret keys in your frontend</a></p>
-</div></body></html>
+</div><script data-goatcounter="https://leakproof.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+</body></html>

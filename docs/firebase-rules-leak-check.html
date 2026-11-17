@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Firebase rules leak check: scan your repo for open security rules</title>
+<meta name="description" content="Free Firebase rules leak check. One command scans firestore.rules, storage.rules and database.rules.json for allow-all rules, and shows how to fix them.">
+<link rel="canonical" href="https://beingrealfrank.github.io/leakproof/firebase-rules-leak-check.html">
+<style>
+  body { margin:0; font: 17px/1.65 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif; background:#fff; color:#1f2328; }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 30px 22px 70px; }
+  a { color:#1a7f37; } code, pre { font-family: ui-monospace, Menlo, monospace; font-size: 14.5px; }
+  pre { background:#f6f8fa; border:1px solid #d0d7de; border-radius:8px; padding:12px 14px; overflow-x:auto; }
+  h1 { line-height:1.2; } h2 { margin-top: 42px; }
+  .cta { background:#f0fdf4; border:1px solid #1a7f3755; border-radius:10px; padding:16px 18px; margin: 36px 0; }
+</style>
+</head>
+<body><div class="wrap">
+<p><a href="./">← Leakproof</a></p>
+<h1>Firebase rules leak check</h1>
+<p>Your Firebase web config is public by design, so your security rules are the only thing between it and your users' data. AI tools often leave them in test mode or set them to <code>if true</code> until the app "works". This check finds those rules in your repo.</p>
+<h2>Run the free scanner</h2>
+<p>One command, runs locally, nothing is uploaded except an optional dependency lookup:</p>
+<pre>npx github:beingRealFrank/leakproof</pre>
+<p>Add <code>--offline</code> to skip that lookup. It is also a <a href="https://github.com/marketplace/actions/leakproof-security-scan">GitHub Action</a> that runs on every pull request.</p>
+<h2>What it reports</h2>
+<p>Output on a small sample project with an open <code>firestore.rules</code>:</p>
+<pre>CRITICAL LP006 Firebase security rules open to everyone
+         firestore.rules:2  allow read, write: if true;
+         Anyone on the internet can read, write this data with your public Firebase config.
+         Fix: Require auth and ownership, e.g. allow read, write: if request.auth != null &amp;&amp; request.auth.uid == resource.data.uid;</pre>
+<h2>Check it from the outside</h2>
+<p>Signed out, a private collection must refuse to list:</p>
+<pre>curl "https://firestore.googleapis.com/v1/projects/&lt;project-id&gt;/databases/(default)/documents/&lt;collection&gt;?pageSize=5"</pre>
+<p>You want <code>403 PERMISSION_DENIED</code>. If you get documents back, anyone on the internet can too.</p>
+<p>Full walkthrough: <a href="firebase-rules-checklist.html">the Firebase rules checklist</a>, and the short answer on <a href="firebase-rules-allow-read-write-if-true.html">fixing "if true" rules</a>.</p>
+<div class="cta">
+<b>Want a human to go through your whole app?</b> The scanner only matches patterns. A fixed-price audit also reviews your live project read-only and sends fix PRs. <a href="./#pricing">See the fixed-price audits</a>.
+</div>
+<p>More checklists: <a href="supabase-rls-checklist.html">Supabase RLS</a> · <a href="firebase-rules-checklist.html">Firebase rules</a> · <a href="public-env-secrets-checklist.html">Secret keys in your frontend</a> · <a href="supabase-rls-policy-checker.html">RLS policy checker</a></p>
+</div><script data-goatcounter="https://leakproof.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+</body></html>

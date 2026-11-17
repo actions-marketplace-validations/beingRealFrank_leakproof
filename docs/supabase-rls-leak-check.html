@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Supabase RLS leak check: scan your repo for tables anyone can read</title>
+<meta name="description" content="Free Supabase RLS leak check. One command scans your migrations for tables without Row Level Security and allow-all policies, then shows the SQL to fix each.">
+<link rel="canonical" href="https://beingrealfrank.github.io/leakproof/supabase-rls-leak-check.html">
+<style>
+  body { margin:0; font: 17px/1.65 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif; background:#fff; color:#1f2328; }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 30px 22px 70px; }
+  a { color:#1a7f37; } code, pre { font-family: ui-monospace, Menlo, monospace; font-size: 14.5px; }
+  pre { background:#f6f8fa; border:1px solid #d0d7de; border-radius:8px; padding:12px 14px; overflow-x:auto; }
+  h1 { line-height:1.2; } h2 { margin-top: 42px; }
+  .cta { background:#f0fdf4; border:1px solid #1a7f3755; border-radius:10px; padding:16px 18px; margin: 36px 0; }
+</style>
+</head>
+<body><div class="wrap">
+<p><a href="./">← Leakproof</a></p>
+<h1>Supabase RLS leak check</h1>
+<p>Your Supabase anon key is in your frontend, so Row Level Security is the only thing between it and your users' data. This check reads your migrations and flags the two mistakes AI builders leave behind most: tables that never enable RLS, and policies that let everyone in.</p>
+<h2>Run the free scanner</h2>
+<p>One command, runs locally, nothing is uploaded except an optional dependency lookup:</p>
+<pre>npx github:beingRealFrank/leakproof</pre>
+<p>Add <code>--offline</code> to skip that lookup. It is also a <a href="https://github.com/marketplace/actions/leakproof-security-scan">GitHub Action</a> that runs on every pull request.</p>
+<h2>What it reports</h2>
+<p>Output on a small sample project with one table missing RLS and one allow-all policy:</p>
+<pre>CRITICAL LP004 Supabase/Postgres table without Row Level Security
+         supabase/migrations/001.sql:1  create table todos
+         Fix: alter table public.todos enable row level security;  then add policies, e.g.
+         create policy "own rows" on public.todos for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+CRITICAL LP005 Row Level Security policy that allows everyone
+         supabase/migrations/001.sql:4  create policy "everyone" on public.profiles for all using (true);
+         Fix: Replace true with an ownership check, e.g. using (auth.uid() = user_id) with check (auth.uid() = user_id).</pre>
+<h2>Check your live database too</h2>
+<p>A scanner only sees your repo. Run these in the Supabase SQL editor to see what is actually deployed:</p>
+<pre>select schemaname, tablename
+from pg_tables
+where schemaname = 'public' and rowsecurity = false;</pre>
+<pre>select tablename, policyname, cmd, roles, qual, with_check
+from pg_policies
+where schemaname = 'public'
+  and (qual = 'true' or with_check = 'true');</pre>
+<p>Or paste a migration into the <a href="supabase-rls-policy-checker.html">RLS policy checker</a> (runs in your browser). Full walkthrough: <a href="supabase-rls-checklist.html">the Supabase RLS checklist</a>.</p>
+<div class="cta">
+<b>Want a human to go through your whole app?</b> The scanner only matches patterns. A fixed-price audit also reviews your live project read-only and sends fix PRs. <a href="./#pricing">See the fixed-price audits</a>.
+</div>
+<p>More checklists: <a href="supabase-rls-checklist.html">Supabase RLS</a> · <a href="firebase-rules-checklist.html">Firebase rules</a> · <a href="public-env-secrets-checklist.html">Secret keys in your frontend</a> · <a href="supabase-rls-policy-checker.html">RLS policy checker</a></p>
+</div><script data-goatcounter="https://leakproof.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+</body></html>
